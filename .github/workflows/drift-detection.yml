@@ -1,4 +1,4 @@
-name: Terraform Drift Detection
+name: Terraform Drift Detection (Get Smart)
 
 on:
   schedule:
@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  id-token: write     # REQUIRED for Terraform Cloud OIDC → AWS
   contents: read
 
 jobs:
@@ -19,22 +20,22 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.9.5
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
       - name: Terraform Init
-        env:
-          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
-        run: terraform init
+        working-directory: infra/prod/get-smart
+        run: terraform init -input=false
 
-      - name: Terraform Plan (Drift detection)
+      - name: Terraform Plan (Drift Detection)
         id: plan
+        working-directory: infra/prod/get-smart
         env:
           TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
         run: terraform plan -detailed-exitcode -input=false
         continue-on-error: true
 
-      - name: Notify if drift detected
+      - name: Fail if drift detected
         if: steps.plan.outcome == 'failure' || steps.plan.exitcode == 2
         run: |
-          echo "⚠️ Drift detected in Terraform configuration."
+          echo "⚠️ Drift detected in Get Smart infrastructure."
           exit 1
