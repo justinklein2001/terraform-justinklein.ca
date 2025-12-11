@@ -58,22 +58,26 @@ This role is only assumed when Terraform Cloud performs an `apply` for the `prod
 #### Trust Policy
 ```json
 {
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "arn:aws:iam::966433002166:oidc-provider/app.terraform.io"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "app.terraform.io:aud": "aws.workload.identity",
-          "app.terraform.io:sub": "organization:justinklein:project:Study-Project:workspace:prod-get-smart:run_phase:apply"
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::966433002166:oidc-provider/app.terraform.io"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "app.terraform.io:aud": "aws.workload.identity"
+                },
+                "StringLike": {
+                    "app.terraform.io:sub": [
+                        "organization:justinklein:project:Study-Project:workspace:prod-get-smart:run_phase:*"
+                    ]
+                }
+            }
         }
-      }
-    }
-  ]
+    ]
 }
 ```
 

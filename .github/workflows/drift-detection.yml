@@ -6,12 +6,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write     # REQUIRED for Terraform Cloud OIDC → AWS
+  id-token: write
   contents: read
 
 jobs:
   drift:
     runs-on: ubuntu-latest
+
+    env:
+      TF_CLOUD_ORGANIZATION: justinklein
+      TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+      TF_CLOUD_WORKSPACE: prod-get-smart
 
     steps:
       - name: Checkout repository
@@ -26,12 +31,10 @@ jobs:
         working-directory: infra/prod/get-smart
         run: terraform init -input=false
 
-      - name: Terraform Plan (Drift Detection)
+      - name: Terraform Plan (Remote Drift Check)
         id: plan
         working-directory: infra/prod/get-smart
-        env:
-          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
-        run: terraform plan -detailed-exitcode -input=false
+        run: terraform plan -detailed-exitcode -input=false -no-color
         continue-on-error: true
 
       - name: Fail if drift detected

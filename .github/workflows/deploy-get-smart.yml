@@ -10,8 +10,13 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      id-token: write        # Required for GitHub OIDC → TFC
+      id-token: write
       contents: read
+
+    env:
+      TF_CLOUD_ORGANIZATION: justinklein
+      TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+      TF_CLOUD_WORKSPACE: prod-get-smart
 
     steps:
       - name: Checkout repository
@@ -22,16 +27,15 @@ jobs:
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
-      # Point Terraform to the get-smart directory
       - name: Terraform Init
         working-directory: infra/prod/get-smart
         run: terraform init -input=false
 
-      - name: Terraform Plan
+      - name: Terraform Plan (remote)
         working-directory: infra/prod/get-smart
-        run: terraform plan -input=false
+        run: terraform plan -input=false -no-color
 
-      - name: Terraform Apply
+      - name: Terraform Apply (remote)
         if: github.ref == 'refs/heads/main'
         working-directory: infra/prod/get-smart
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply -auto-approve -input=false -no-color
