@@ -44,20 +44,26 @@ resource "aws_acm_certificate" "wildcard" {
   domain_name       = "*.${var.root_domain}"
   validation_method = "DNS"
   key_algorithm     = "RSA_2048"
+
   lifecycle {
     create_before_destroy = true
   }
 }
 
+# Convert set → list so we can index deterministically
+locals {
+  wildcard_validation_options = tolist(aws_acm_certificate.wildcard.domain_validation_options)
+}
+
 resource "aws_route53_record" "wildcard_validation" {
   zone_id = data.aws_route53_zone.root.zone_id
 
-  name    = aws_acm_certificate.wildcard.domain_validation_options[0].resource_record_name
-  type    = aws_acm_certificate.wildcard.domain_validation_options[0].resource_record_type
+  name    = local.wildcard_validation_options[0].resource_record_name
+  type    = local.wildcard_validation_options[0].resource_record_type
   ttl     = 60
 
   records = [
-    aws_acm_certificate.wildcard.domain_validation_options[0].resource_record_value
+    local.wildcard_validation_options[0].resource_record_value
   ]
 }
 
