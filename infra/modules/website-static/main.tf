@@ -41,10 +41,9 @@ resource "aws_cloudfront_origin_access_control" "oac" {
 # ------------------------------------------------------------------
 
 resource "aws_acm_certificate" "wildcard" {
-  provider          = aws.us_east_1
   domain_name       = "*.${var.root_domain}"
   validation_method = "DNS"
-
+  key_algorithm     = "RSA_2048"
   lifecycle {
     create_before_destroy = true
   }
@@ -63,7 +62,6 @@ resource "aws_route53_record" "wildcard_validation" {
 }
 
 resource "aws_acm_certificate_validation" "wildcard" {
-  provider                = aws.us_east_1
   certificate_arn         = aws_acm_certificate.wildcard.arn
   validation_record_fqdns = [aws_route53_record.wildcard_validation.fqdn]
 }
