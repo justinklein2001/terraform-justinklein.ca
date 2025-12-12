@@ -1,6 +1,6 @@
 # Terraform Infrastructure Technical Overview
 **Author: Justin Klein**  
-**Last Updated: December 10th, 2025**
+**Last Updated: December 12th, 2025**
 
 This repository contains a monolithic Terraform setup for deploying multiple static sites using **S3 + CloudFront**. All **state** is stored in **Terraform Cloud** and **AWS** access uses **dynamic provider credentials (OIDC)**, avoiding long-lived IAM keys completely.
 
@@ -19,8 +19,11 @@ Each deployable site has its **own** **workspace** and **AWS Assumed Role**.
 
 ```bash
 TFC_AWS_PROVIDER_AUTH = true  
-TFC_AWS_RUN_ROLE_ARN = arn:aws:iam::{ACCOUNT_ID_HERE}:role/{APP_NAME_HERE}-TerraformCloudRole  
+TFC_AWS_RUN_ROLE_ARN = arn:aws:iam::{ACCOUNT}:role/{ROLE}  
 ```
+
+### GitHub Actions Considerations
+The repository's **secrets** need to have a **Terraform Cloud API Key** since all workspaces are **CLI-Driven**. This key must be **manually rotated** periodically to ensure best security practices.
 
 # Dynamic AWS Credentials (OIDC)
 
@@ -40,7 +43,7 @@ No long-lived AWS access keys exist.
 # AWS Configuration
 
 ## 1. OIDC Provider (`app.terraform.io`)
-All **Assumed** roles are tied to this provider.
+The **assumed** role is tied to this provider.
 
 Provider: **app.terraform.io** 
 
@@ -51,9 +54,9 @@ Audience: **aws.workload.identity**
 ## 2. IAM Roles 
 Each **deployable** site has its own Terraform role.
 
-### 2a. GetSmartApp-TerraformCloudRole
+### Assumed Role
 
-This role is only assumed when Terraform Cloud performs an `apply` for the `prod-get-smart` workspace.
+This role is only assumed when Terraform Cloud performs a `plan/apply` for the **each** workspace.
 
 #### Trust Policy
 ```json
@@ -63,7 +66,7 @@ This role is only assumed when Terraform Cloud performs an `apply` for the `prod
         {
             "Effect": "Allow",
             "Principal": {
-                "Federated": "arn:aws:iam::966433002166:oidc-provider/app.terraform.io"
+                "Federated": "arn:aws:iam::{ACCOUNT}:oidc-provider/app.terraform.io"
             },
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
@@ -72,7 +75,7 @@ This role is only assumed when Terraform Cloud performs an `apply` for the `prod
                 },
                 "StringLike": {
                     "app.terraform.io:sub": [
-                        "organization:justinklein:project:Study-Project:workspace:prod-get-smart:run_phase:*"
+                        "organization:{ORG}:project:{PROJECT}:workspace:{WORKSPACE}:run_phase:*"
                     ]
                 }
             }
@@ -92,60 +95,85 @@ These policies grant Terraform Cloud just enough permissions to manage:
 - Route53 DNS records  
 - CloudWatch logs (CloudFront)
  
-### 3a. GetSmartApp-TerraformCloudPermissions
+### Assumed Role Permissions
 
 ```json
 {
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "S3ManagementForStaticSites",
-      "Effect": "Allow",
-      "Action": [
-        "s3:CreateBucket",
-        "s3:PutBucketPolicy",
-        "s3:PutEncryptionConfiguration",
-        "s3:GetBucketPolicy",
-        "s3:DeleteBucket",
-        "s3:ListBucket",
-        "s3:GetBucketLocation"
-      ],
-      "Resource": "arn:aws:s3:::*"
-    },
-    {
-      "Sid": "CloudFrontManagement",
-      "Effect": "Allow",
-      "Action": [
-        "cloudfront:CreateDistribution",
-        "cloudfront:UpdateDistribution",
-        "cloudfront:GetDistribution",
-        "cloudfront:DeleteDistribution",
-        "cloudfront:TagResource",
-        "cloudfront:CreateInvalidation"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "Route53Management",
-      "Effect": "Allow",
-      "Action": [
-        "route53:ChangeResourceRecordSets",
-        "route53:ListResourceRecordSets",
-        "route53:GetHostedZone",
-        "route53:ListHostedZonesByName"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "ACMReadOnly",
-      "Effect": "Allow",
-      "Action": [
-        "acm:ListCertificates",
-        "acm:DescribeCertificate"
-      ],
-      "Resource": "*"
-    }
-  ]
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "FullAccessToSiteBucket",
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::{BUCKET_NAME}",
+                "arn:aws:s3:::{BUCKET_NAME}/*"
+            ]
+        },
+        {
+            "Sid": "S3ListAllBuckets",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListAllMyBuckets",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CloudFrontManagement",
+            "Effect": "Allow",
+            "Action": [
+                "cloudfront:CreateDistribution",
+                "cloudfront:UpdateDistribution",
+                "cloudfront:GetDistribution",
+                "cloudfront:DeleteDistribution",
+                "cloudfront:TagResource",
+                "cloudfront:CreateInvalidation",
+                "cloudfront:CreateOriginAccessControl",
+                "cloudfront:UpdateOriginAccessControl",
+                "cloudfront:GetOriginAccessControl",
+                "cloudfront:ListOriginAccessControls"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "Route53LimitedAccess",
+            "Effect": "Allow",
+            "Action": "route53:*",
+            "Resource": [
+                "arn:aws:route53:::hostedzone/{ZONE_ID}"
+            ]
+        },
+        {
+            "Sid": "Route53Reads",
+            "Effect": "Allow",
+            "Action": [
+                "route53:ListHostedZones",
+                "route53:ListHostedZonesByName",
+                "route53:GetHostedZone",
+                "route53:ListResourceRecordSets",
+                "route53:ListTagsForResource",
+                "route53:ListTagsForResources",
+                "route53:ListHealthChecks",
+                "route53:GetHealthCheck",
+                "route53:GetHealthCheckStatus",
+                "route53:ListTrafficPolicies",
+                "route53:GetTrafficPolicy",
+                "route53:GetTrafficPolicyInstance",
+                "route53:ListTrafficPolicyInstances",
+                "route53:ListQueryLoggingConfigs",
+                "route53:GetQueryLoggingConfig",
+                "route53:GetChange"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ACMFullAccess",
+            "Effect": "Allow",
+            "Action": "acm:*",
+            "Resource": "*"
+        }
+    ]
 }
 ```
 

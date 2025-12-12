@@ -13,3 +13,8 @@ variable "create_dns_record" {
   type        = bool
   default     = true
 }
+
+variable "acm_certificate_arn" {
+  description = "ARN of manually created ACM certificate in us-east-1"
+  type        = string
+}

@@ -36,43 +36,6 @@ resource "aws_cloudfront_origin_access_control" "oac" {
 }
 
 # ------------------------------------------------------------------
-# ACM Certificate (wildcard for entire domain)
-# Must be in us-east-1
-# ------------------------------------------------------------------
-
-resource "aws_acm_certificate" "wildcard" {
-  domain_name       = "*.${var.root_domain}"
-  validation_method = "DNS"
-  key_algorithm     = "RSA_2048"
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Convert set → list so we can index deterministically
-locals {
-  wildcard_validation_options = tolist(aws_acm_certificate.wildcard.domain_validation_options)
-}
-
-resource "aws_route53_record" "wildcard_validation" {
-  zone_id = data.aws_route53_zone.root.zone_id
-
-  name    = local.wildcard_validation_options[0].resource_record_name
-  type    = local.wildcard_validation_options[0].resource_record_type
-  ttl     = 60
-
-  records = [
-    local.wildcard_validation_options[0].resource_record_value
-  ]
-}
-
-resource "aws_acm_certificate_validation" "wildcard" {
-  certificate_arn         = aws_acm_certificate.wildcard.arn
-  validation_record_fqdns = [aws_route53_record.wildcard_validation.fqdn]
-}
-
-# ------------------------------------------------------------------
 # CloudFront Distribution
 # ------------------------------------------------------------------
 
@@ -107,7 +70,7 @@ resource "aws_cloudfront_distribution" "site" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = aws_acm_certificate_validation.wildcard.certificate_arn
+    acm_certificate_arn      = var.acm_certificate_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }
