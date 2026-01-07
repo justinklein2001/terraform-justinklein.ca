@@ -133,7 +133,8 @@ resource "aws_iam_policy" "tfc_least_privilege" {
         Action   = [
           "acm:ListCertificates",
           "acm:DescribeCertificate",
-          "acm:GetCertificate"
+          "acm:GetCertificate",
+          "acm:ListTagsForCertificate"
         ]
         Resource = "*"
       }
