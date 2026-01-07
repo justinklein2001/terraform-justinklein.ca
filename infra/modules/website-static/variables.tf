@@ -1,10 +1,15 @@
 variable "site_domain" {
-  description = "The subdomain used for this site, e.g., get-smart.justinklein.ca"
+  description = "The full domain used for this site, e.g., get-smart.justinklein.ca"
   type        = string
 }
 
-variable "root_domain" {
-  description = "Base domain for cert lookup, e.g., justinklein.ca"
+variable "zone_id" {
+  description = "The Hosted Zone ID where DNS records will be created"
+  type        = string
+}
+
+variable "acm_certificate_arn" {
+  description = "ARN of the existing ACM certificate in us-east-1"
   type        = string
 }
 
@@ -12,9 +17,4 @@ variable "create_dns_record" {
   description = "Whether to create an A/AAAA record"
   type        = bool
   default     = true
-}
-
-variable "acm_certificate_arn" {
-  description = "ARN of manually created ACM certificate in us-east-1"
-  type        = string
 }

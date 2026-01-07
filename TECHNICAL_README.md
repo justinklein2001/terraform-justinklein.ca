@@ -12,7 +12,7 @@ Each deployable site has its **own** **workspace** and **AWS Assumed Role**.
 **Organization:** justinklein  
 
 **Workspaces:**
-1.  [prod-get-smart](https://app.terraform.io/app/justinklein/workspaces/prod-get-smart)
+1.  [prod](https://app.terraform.io/app/justinklein/workspaces/prod)
 
 
 ### Required Environment Variables (set in each workspace):
@@ -21,9 +21,6 @@ Each deployable site has its **own** **workspace** and **AWS Assumed Role**.
 TFC_AWS_PROVIDER_AUTH = true  
 TFC_AWS_RUN_ROLE_ARN = arn:aws:iam::{ACCOUNT}:role/{ROLE}  
 ```
-
-### GitHub Actions Considerations
-The repository's **secrets** need to have a **Terraform Cloud API Key** since all workspaces are **CLI-Driven**. This key must be **manually rotated** periodically to ensure best security practices.
 
 # Dynamic AWS Credentials (OIDC)
 
@@ -56,7 +53,7 @@ Each **deployable** site has its own Terraform role.
 
 ### Assumed Role
 
-This role is only assumed when Terraform Cloud performs a `plan/apply` for the **each** workspace.
+This role is only assumed when Terraform Cloud performs a `plan/apply` for the workspace.
 
 #### Trust Policy
 ```json

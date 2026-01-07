@@ -116,15 +116,10 @@ resource "aws_s3_bucket_policy" "site_policy" {
 # Route53 DNS
 # ------------------------------------------------------------------
 
-data "aws_route53_zone" "root" {
-  name         = "${var.root_domain}."
-  private_zone = false
-}
-
 resource "aws_route53_record" "a_record" {
   count = var.create_dns_record ? 1 : 0
 
-  zone_id = data.aws_route53_zone.root.zone_id
+  zone_id = var.zone_id
   name    = var.site_domain
   type    = "A"
 
@@ -138,7 +133,7 @@ resource "aws_route53_record" "a_record" {
 resource "aws_route53_record" "aaaa_record" {
   count = var.create_dns_record ? 1 : 0
 
-  zone_id = data.aws_route53_zone.root.zone_id
+  zone_id = var.zone_id
   name    = var.site_domain
   type    = "AAAA"
 
