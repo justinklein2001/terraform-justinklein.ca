@@ -1,0 +1,30 @@
+# ------------------------------------------------------------------
+# Terraform - Critical Ignored Files
+# ------------------------------------------------------------------
+# Local .terraform directories (plugins & cache)
+**/.terraform/
+
+# State files (contains sensitive data!)
+*.tfstate
+*.tfstate.*
+
+# Variable files (contains your Account ID)
+*.tfvars
+*.tfvars.json
+
+# Crash logs
+crash.log
+
+# ------------------------------------------------------------------
+# Project Specific
+# ------------------------------------------------------------------
+# You have a backup.json in your root, likely temporary
+backup.json
+
+# ------------------------------------------------------------------
+# OS & IDE Junk
+# ------------------------------------------------------------------
+.DS_Store
+.vscode/
+.idea/
+Thumbs.db
