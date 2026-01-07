@@ -1,181 +1,98 @@
 # Terraform Infrastructure Technical Overview
-**Author: Justin Klein**  
-**Last Updated: December 12th, 2025**
+## Author: Justin Klein
+## Last Updated: January 7th, 2026
 
-This repository contains a monolithic Terraform setup for deploying multiple static sites using **S3 + CloudFront**. All **state** is stored in **Terraform Cloud** and **AWS** access uses **dynamic provider credentials (OIDC)**, avoiding long-lived IAM keys completely.
+This repository utilizes a **Split-State Architecture** to manage AWS infrastructure securely.
+- **`infra/bootstrap`**: Manages Identity & Access (IAM). Executed locally by an Admin.
+- **`infra/prod`**: Manages Workloads (S3/CloudFront/DNS). Executed by Terraform Cloud via VCS.
 
-Each subfolder under `infra/prod/` represents a **deployable** environment/site.
+---
 
-# Terraform Cloud Configuration
-Each deployable site has its **own** **workspace** and **AWS Assumed Role**.
+# Layer 1: The Bootstrap (Identity)
+**Directory:** `infra/bootstrap`  
+**Execution:** Local CLI (`terraform apply`)  
 
-**Organization:** justinklein  
+This layer solves the "secure introduction" problem. It creates the **OIDC Provider** and the **IAM Role** that Terraform Cloud will assume.
 
-**Workspaces:**
-1.  [prod](https://app.terraform.io/app/justinklein/workspaces/prod)
+### Why split this out?
+1.  **Security:** We do not want Terraform Cloud to have permissions to change its own permissions (No Privilege Escalation).
+2.  **Safety:** If the TFC workspace is compromised, it cannot delete the IAM Role that governs it.
 
+### Usage
+To update the trust policy or IAM permissions:
+1.  Export your personal AWS CLI credentials (`aws configure`).
+2.  Create a `terraform.tfvars` file (gitignored) with your `aws_account_id`.
+3.  Run `terraform apply` locally.
+4.  Copy the output `role_arn` to the TFC Workspace Variable `TFC_AWS_RUN_ROLE_ARN`.
 
-### Required Environment Variables (set in each workspace):
+---
 
-```bash
-TFC_AWS_PROVIDER_AUTH = true  
-TFC_AWS_RUN_ROLE_ARN = arn:aws:iam::{ACCOUNT}:role/{ROLE}  
+# Layer 2: The Monolith (Workload)
+**Directory:** `infra/prod`  
+**Execution:** Terraform Cloud (VCS-Driven)
+
+This is the "Root Module" that manages the active infrastructure. It utilizes a **Dependency Injection** pattern to manage multiple sites efficiently.
+
+### Architecture
+Instead of independent workspaces for each site, a single workspace (`prod-main`) manages the entire portfolio.
+1.  **Root (`main.tf`):** Lookups the Shared Route53 Zone and Wildcard Certificate **once**.
+2.  **Modules:** The Zone ID and Cert ARN are passed into the `website-static` module.
+3.  **Result:** Faster plans and no "racing" conditions for DNS validation.
+
+### Adding a New Site
+To deploy a new subdomain (e.g., `blog.justinklein.ca`), simply add a module block to `infra/prod/main.tf`:
+
+```hcl
+module "site_blog" {
+  source              = "../modules/website-static"
+  site_domain         = "blog.justinklein.ca"
+  zone_id             = data.aws_route53_zone.main.zone_id
+  acm_certificate_arn = data.aws_acm_certificate.wildcard.arn
+}
 ```
 
-# Dynamic AWS Credentials (OIDC)
+---
 
-This repo uses Terraform Cloud → AWS OIDC federation.  
-No long-lived AWS access keys exist.
+# Security & IAM
+**Authentication Method:** OIDC (OpenID Connect)  
+**Provider:** `app.terraform.io`  
 
-### How it Works
+### Trust Policy (The Guardrail)
+The IAM Role trusts **Terraform Cloud** only if the request comes from the `justinklein` organization.
 
-1. A Terraform run starts.  
-2. Terraform Cloud generates an OIDC workload identity token.  
-3. AWS verifies the token using the Terraform Cloud OIDC provider.  
-4. AWS issues temporary credentials for the run.  
-5. Terraform uses those credentials to apply infrastructure.  
-6. Credentials expire after the run.
-
-
-# AWS Configuration
-
-## 1. OIDC Provider (`app.terraform.io`)
-The **assumed** role is tied to this provider.
-
-Provider: **app.terraform.io** 
-
-Audience: **aws.workload.identity**
-
-
-
-## 2. IAM Roles 
-Each **deployable** site has its own Terraform role.
-
-### Assumed Role
-
-This role is only assumed when Terraform Cloud performs a `plan/apply` for the workspace.
-
-#### Trust Policy
 ```json
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "Federated": "arn:aws:iam::{ACCOUNT}:oidc-provider/app.terraform.io"
-            },
-            "Action": "sts:AssumeRoleWithWebIdentity",
-            "Condition": {
-                "StringEquals": {
-                    "app.terraform.io:aud": "aws.workload.identity"
-                },
-                "StringLike": {
-                    "app.terraform.io:sub": [
-                        "organization:{ORG}:project:{PROJECT}:workspace:{WORKSPACE}:run_phase:*"
-                    ]
-                }
-            }
-        }
+  "StringLike": {
+    "app.terraform.io:sub": "organization:justinklein:project:*:workspace:*:run_phase:*"
+  }
+}
+```
+
+### Least Privilege Permissions
+The workload role does **NOT** have AdministratorAccess. It is scoped strictly to the resources it needs to manage.
+
+1.  **S3:** Full access only to buckets matching `*-justinklein-ca` or `justinlein-ca`.
+2.  **CloudFront:** Full management of Distributions and OACs.
+3.  **Route53:** Full access only to the specific Zone ID.
+4.  **ACM:** **Read-Only**. Terraform can find certificates, but cannot delete or revoke them.
+
+#### Policy Snippet
+```json
+{
+    "Sid": "ManagePortfolioBuckets",
+    "Effect": "Allow",
+    "Action": "s3:*",
+    "Resource": [
+        "arn:aws:s3:::*-justinklein-ca",
+        "arn:aws:s3:::*-justinklein-ca/*",
+        "arn:aws:s3:::justinklein-ca",
+        "arn:aws:s3:::justinklein-ca/*"
     ]
 }
 ```
 
+---
 
-## 3. IAM Policy
-
-These policies grant Terraform Cloud just enough permissions to manage:
-
-- S3 bucket for static site  
-- CloudFront distribution  
-- ACM certificate lookup  
-- Route53 DNS records  
-- CloudWatch logs (CloudFront)
- 
-### Assumed Role Permissions
-
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "FullAccessToSiteBucket",
-            "Effect": "Allow",
-            "Action": "s3:*",
-            "Resource": [
-                "arn:aws:s3:::{BUCKET_NAME}",
-                "arn:aws:s3:::{BUCKET_NAME}/*"
-            ]
-        },
-        {
-            "Sid": "S3ListAllBuckets",
-            "Effect": "Allow",
-            "Action": [
-                "s3:ListAllMyBuckets",
-                "s3:GetBucketLocation"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "CloudFrontManagement",
-            "Effect": "Allow",
-            "Action": [
-                "cloudfront:CreateDistribution",
-                "cloudfront:UpdateDistribution",
-                "cloudfront:GetDistribution",
-                "cloudfront:DeleteDistribution",
-                "cloudfront:TagResource",
-                "cloudfront:CreateInvalidation",
-                "cloudfront:CreateOriginAccessControl",
-                "cloudfront:UpdateOriginAccessControl",
-                "cloudfront:GetOriginAccessControl",
-                "cloudfront:ListOriginAccessControls"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "Route53LimitedAccess",
-            "Effect": "Allow",
-            "Action": "route53:*",
-            "Resource": [
-                "arn:aws:route53:::hostedzone/{ZONE_ID}"
-            ]
-        },
-        {
-            "Sid": "Route53Reads",
-            "Effect": "Allow",
-            "Action": [
-                "route53:ListHostedZones",
-                "route53:ListHostedZonesByName",
-                "route53:GetHostedZone",
-                "route53:ListResourceRecordSets",
-                "route53:ListTagsForResource",
-                "route53:ListTagsForResources",
-                "route53:ListHealthChecks",
-                "route53:GetHealthCheck",
-                "route53:GetHealthCheckStatus",
-                "route53:ListTrafficPolicies",
-                "route53:GetTrafficPolicy",
-                "route53:GetTrafficPolicyInstance",
-                "route53:ListTrafficPolicyInstances",
-                "route53:ListQueryLoggingConfigs",
-                "route53:GetQueryLoggingConfig",
-                "route53:GetChange"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "ACMFullAccess",
-            "Effect": "Allow",
-            "Action": "acm:*",
-            "Resource": "*"
-        }
-    ]
-}
-```
-
-# Sources
-
-[Terraform Cloud → AWS OIDC documentation](https://developer.hashicorp.com/terraform/cloud-docs/dynamic-provider-credentials/aws-configuration#configure-hcp-terraform
-)  
-
+# Sources & Reference
+* [Terraform Cloud OIDC Configuration](https://developer.hashicorp.com/terraform/cloud-docs/dynamic-provider-credentials/aws-configuration)
+* [AWS IAM Least Privilege Best Practices](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html)

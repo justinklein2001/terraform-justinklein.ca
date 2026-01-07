@@ -24,7 +24,6 @@ data "aws_acm_certificate" "wildcard" {
 }
 
 # 3. Deploy the Sites
-
 module "site_root" {
   source          = "../modules/website-static"
   site_domain     = "justinklein.ca"
@@ -38,7 +37,7 @@ module "site_get_smart" {
   zone_id         = data.aws_route53_zone.main.zone_id
   acm_certificate_arn = data.aws_acm_certificate.wildcard.arn
 }
-
+## WHEN READY, UNCOMMENT THIS BLOCK TO DEPLOY get-quizzed.justinklein.ca
 # module "site_get_quizzed" {
 #   source          = "../modules/website-static"
 #   site_domain     = "get-quizzed.justinklein.ca"
