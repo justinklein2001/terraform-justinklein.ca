@@ -143,3 +143,65 @@ resource "aws_route53_record" "aaaa_record" {
     evaluate_target_health = false
   }
 }
+
+# ------------------------------------------------------------------
+# GitHub Actions Deployment Role
+# ------------------------------------------------------------------
+
+resource "aws_iam_role" "github_deploy_role" {
+  # Enforcing the naming convention set in Bootstrap permissions
+  name = "${var.site_domain}-github-deploy-role" 
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Effect = "Allow"
+        Principal = {
+          Federated = var.github_oidc_arn
+        }
+        Condition = {
+          StringLike = {
+            # Only allow the specific repo (main branch)
+            "token.actions.githubusercontent.com:sub": "repo:${var.github_repo}:ref:refs/heads/main"
+          },
+          StringEquals = {
+             "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "github_deploy_policy" {
+  name = "s3-deploy-policy"
+  role = aws_iam_role.github_deploy_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "SyncToS3",
+        Effect = "Allow",
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:DeleteObject"
+        ],
+        Resource = [
+          aws_s3_bucket.site.arn,
+          "${aws_s3_bucket.site.arn}/*"
+        ]
+      },
+      {
+        Sid    = "InvalidateCloudFront",
+        Effect = "Allow",
+        Action = "cloudfront:CreateInvalidation",
+        Resource = aws_cloudfront_distribution.site.arn
+      }
+    ]
+  })
+}

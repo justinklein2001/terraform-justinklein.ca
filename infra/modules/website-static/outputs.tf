@@ -9,3 +9,7 @@ output "cloudfront_domain" {
 output "site_domain" {
   value = var.site_domain
 }
+
+output "github_role_arn" {
+  value = aws_iam_role.github_deploy_role.arn
+}
