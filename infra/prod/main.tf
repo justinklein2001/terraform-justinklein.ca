@@ -11,24 +11,34 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# 1. Lookup the existing Zone (Manually created to avoid infinite hang)
+# Get the current Account ID dynamically
+data "aws_caller_identity" "current" {}
+
+# Define the ARN using the Account ID
+locals {
+  github_oidc_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
+}
+
+# Lookup the existing Zone (Manually created to avoid infinite hang)
 data "aws_route53_zone" "main" {
   name = "justinklein.ca"
 }
 
-# 2. Lookup the existing Wildcard Certificate (*.justinklein.ca)
+# Lookup the existing Wildcard Certificate (*.justinklein.ca)
 data "aws_acm_certificate" "wildcard" {
   domain      = "justinklein.ca" 
   most_recent = true
   statuses    = ["ISSUED"]
 }
 
-# 3. Deploy the Sites
+# Deploy the Sites
 module "site_root" {
   source          = "../modules/website-static"
   site_domain     = "justinklein.ca"
   zone_id         = data.aws_route53_zone.main.zone_id
   acm_certificate_arn = data.aws_acm_certificate.wildcard.arn
+  github_repo         = "justinklein2001/justinklein.ca" 
+  github_oidc_arn     = local.github_oidc_arn
 }
 
 module "site_get_smart" {
@@ -36,11 +46,6 @@ module "site_get_smart" {
   site_domain     = "get-smart.justinklein.ca"
   zone_id         = data.aws_route53_zone.main.zone_id
   acm_certificate_arn = data.aws_acm_certificate.wildcard.arn
+  github_repo         = "justinklein2001/my-tech-notes" 
+  github_oidc_arn     = local.github_oidc_arn
 }
-## WHEN READY, UNCOMMENT THIS BLOCK TO DEPLOY get-quizzed.justinklein.ca
-# module "site_get_quizzed" {
-#   source          = "../modules/website-static"
-#   site_domain     = "get-quizzed.justinklein.ca"
-#   zone_id         = data.aws_route53_zone.main.zone_id
-#   acm_certificate_arn = data.aws_acm_certificate.wildcard.arn
-# }

@@ -4,7 +4,7 @@ provider "aws" {
 }
 
 # ------------------------------------------------------------------------------
-# 1. OIDC Provider (Connects AWS to Terraform Cloud)
+# Terraform OIDC Provider (Connects AWS to Terraform Cloud)
 # ------------------------------------------------------------------------------
 resource "aws_iam_openid_connect_provider" "tfc_provider" {
   url             = "https://app.terraform.io"
@@ -13,7 +13,17 @@ resource "aws_iam_openid_connect_provider" "tfc_provider" {
 }
 
 # ------------------------------------------------------------------------------
-# 2. IAM Role (The Identity TFC Assumes)
+# GitHub OIDC Provider (Global)
+# ------------------------------------------------------------------------------
+resource "aws_iam_openid_connect_provider" "github_provider" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  # GitHub's thumbprint (This is the standard one)
+  thumbprint_list = ["1c58a3a8518e8759bf075b76b750d4f2df264fcd"]
+}
+
+# ------------------------------------------------------------------------------
+# IAM Role (The Identity TFC Assumes)
 # ------------------------------------------------------------------------------
 resource "aws_iam_role" "tfc_admin_role" {
   name = "tfc-admin-role" 
@@ -42,7 +52,7 @@ resource "aws_iam_role" "tfc_admin_role" {
 }
 
 # ------------------------------------------------------------------------------
-# 3. Custom Least Privilege Policy
+# Custom Least Privilege Policy for TFC Role
 # ------------------------------------------------------------------------------
 resource "aws_iam_policy" "tfc_least_privilege" {
   name        = "TFC-LeastPrivilege-Policy"
@@ -137,6 +147,26 @@ resource "aws_iam_policy" "tfc_least_privilege" {
           "acm:ListTagsForCertificate"
         ]
         Resource = "*"
+      },
+      # IAM Role Management for GitHub Deployments
+      {
+        Sid    = "AllowTFCToCreateGitHubRoles",
+        Effect = "Allow",
+        Action = [
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:GetRole",
+          "iam:UpdateRole",
+          "iam:TagRole",
+          "iam:UntagRole",
+          "iam:PassRole",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:GetRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy"
+        ],
+        Resource = "arn:aws:iam::${var.aws_account_id}:role/*-github-deploy-role"
       }
     ]
   })

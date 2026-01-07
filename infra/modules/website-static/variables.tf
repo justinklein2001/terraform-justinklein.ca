@@ -18,3 +18,13 @@ variable "create_dns_record" {
   type        = bool
   default     = true
 }
+
+variable "github_repo" {
+  description = "The GitHub repo allowed to deploy (e.g., justinklein/get-smart)"
+  type        = string
+}
+
+variable "github_oidc_arn" {
+  description = "ARN of the GitHub OIDC Provider"
+  type        = string
+}
