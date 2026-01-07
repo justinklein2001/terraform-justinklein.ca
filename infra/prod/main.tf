@@ -1,3 +1,16 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+
 # 1. Lookup the existing Zone (Manually created to avoid infinite hang)
 data "aws_route53_zone" "main" {
   name = "justinklein.ca"
