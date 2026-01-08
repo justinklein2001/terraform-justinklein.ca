@@ -200,7 +200,7 @@ resource "aws_iam_role_policy" "github_deploy_policy" {
         Sid    = "InvalidateCloudFront",
         Effect = "Allow",
         Action = "cloudfront:CreateInvalidation",
-        Resource = aws_cloudfront_distribution.site.arn
+        Resource = "*"
       }
     ]
   })
