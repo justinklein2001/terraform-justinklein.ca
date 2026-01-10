@@ -40,7 +40,8 @@ resource "aws_cloudfront_origin_access_control" "oac" {
 # ------------------------------------------------------------------
 
 resource "aws_cloudfront_function" "dir_index_rewrite" {
-  name    = "${var.site_domain}-dir-index-rewrite"
+  name    = "${replace(var.site_domain, ".", "-")}-dir-index-rewrite"
+  
   runtime = "cloudfront-js-1.0"
   comment = "Rewrites directory URLs to index.html for S3 OAC"
   publish = true
@@ -49,11 +50,9 @@ function handler(event) {
     var request = event.request;
     var uri = request.uri;
 
-    // Case 1: URL ends with a slash (e.g. /terraform/overview/)
     if (uri.endsWith('/')) {
         request.uri += 'index.html';
     } 
-    // Case 2: URL has no file extension (e.g. /terraform/overview)
     else if (!uri.includes('.')) {
         request.uri += '/index.html';
     }
