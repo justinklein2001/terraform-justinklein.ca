@@ -99,7 +99,14 @@ resource "aws_iam_policy" "tfc_least_privilege" {
           "cloudfront:UpdateOriginAccessControl",
           "cloudfront:GetOriginAccessControl",
           "cloudfront:DeleteOriginAccessControl",
-          "cloudfront:ListOriginAccessControls"
+          "cloudfront:ListOriginAccessControls",
+          "cloudfront:CreateFunction",
+          "cloudfront:DescribeFunction",
+          "cloudfront:GetFunction",
+          "cloudfront:UpdateFunction",
+          "cloudfront:DeleteFunction",
+          "cloudfront:PublishFunction",
+          "cloudfront:TestFunction"
         ]
         Resource = "*"
       },
