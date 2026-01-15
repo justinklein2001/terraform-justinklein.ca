@@ -232,3 +232,41 @@ resource "aws_iam_role_policy" "github_deploy_policy" {
     ]
   })
 }
+
+# ------------------------------------------------------------------
+# 2. The Vector KB Policy (Conditiona: Only created if kb_bucket_arn exists)
+# ------------------------------------------------------------------
+
+resource "aws_iam_role_policy" "vector_kb_policy" {
+  # Only create this policy if a KB bucket is provided
+  count = var.kb_bucket_arn != "" ? 1 : 0
+
+  name = "vector-kb-policy"
+  role = aws_iam_role.github_deploy_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowBedrockEmbeddings",
+        Effect = "Allow",
+        Action = "bedrock:InvokeModel",
+        Resource = "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
+      },
+      {
+        Sid    = "AllowKBWrite",
+        Effect = "Allow",
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:DeleteObject"
+        ],
+        Resource = [
+          var.kb_bucket_arn,
+          "${var.kb_bucket_arn}/*"
+        ]
+      }
+    ]
+  })
+}

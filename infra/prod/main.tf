@@ -31,6 +31,21 @@ data "aws_acm_certificate" "wildcard" {
   statuses    = ["ISSUED"]
 }
 
+# The Knowledge Base Bucket (Stores the Vectors)
+resource "aws_s3_bucket" "knowledge_base" {
+  bucket = "knowledge-base-justinklein-ca" # Must be globally unique
+}
+
+# Block public access for the Knowledge Base Bucket
+resource "aws_s3_bucket_public_access_block" "kb_block" {
+  bucket = aws_s3_bucket.knowledge_base.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
 # Deploy the Sites
 module "site_root" {
   source          = "../modules/website-static"
@@ -48,4 +63,5 @@ module "site_get_smart" {
   acm_certificate_arn = data.aws_acm_certificate.wildcard.arn
   github_repo         = "justinklein2001/my-tech-notes" 
   github_oidc_arn     = local.github_oidc_arn
+  kb_bucket_arn       = aws_s3_bucket.knowledge_base.arn
 }

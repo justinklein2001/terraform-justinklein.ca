@@ -28,3 +28,9 @@ variable "github_oidc_arn" {
   description = "ARN of the GitHub OIDC Provider"
   type        = string
 }
+
+variable "kb_bucket_arn" {
+  description = "Optional: ARN of the S3 Bucket used for Vector Knowledge Base"
+  type        = string
+  default     = "" # Defaults to empty if not provided (like for your root site)
+}
