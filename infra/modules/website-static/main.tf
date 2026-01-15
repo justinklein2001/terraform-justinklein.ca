@@ -234,12 +234,12 @@ resource "aws_iam_role_policy" "github_deploy_policy" {
 }
 
 # ------------------------------------------------------------------
-# 2. The Vector KB Policy (Conditiona: Only created if kb_bucket_arn exists)
+# 2. The Vector KB Policy (Conditiona: Only created if kb_bucket_name exists)
 # ------------------------------------------------------------------
 
 resource "aws_iam_role_policy" "vector_kb_policy" {
   # Only create this policy if a KB bucket is provided
-  count = var.kb_bucket_arn != "" ? 1 : 0
+  count = var.kb_bucket_name != "" ? 1 : 0
 
   name = "vector-kb-policy"
   role = aws_iam_role.github_deploy_role.id
@@ -263,8 +263,8 @@ resource "aws_iam_role_policy" "vector_kb_policy" {
           "s3:DeleteObject"
         ],
         Resource = [
-          var.kb_bucket_arn,
-          "${var.kb_bucket_arn}/*"
+          "arn:aws:s3:::${var.kb_bucket_name}",
+          "arn:aws:s3:::${var.kb_bucket_name}/*"
         ]
       }
     ]

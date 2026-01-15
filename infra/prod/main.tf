@@ -63,5 +63,5 @@ module "site_get_smart" {
   acm_certificate_arn = data.aws_acm_certificate.wildcard.arn
   github_repo         = "justinklein2001/my-tech-notes" 
   github_oidc_arn     = local.github_oidc_arn
-  kb_bucket_arn       = aws_s3_bucket.knowledge_base.arn
+  kb_bucket_name      = "knowledge-base-justinklein-ca"
 }
