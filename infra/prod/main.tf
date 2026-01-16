@@ -62,13 +62,13 @@ resource "aws_s3_bucket_public_access_block" "kb_block" {
 resource "aws_s3_object" "resume_placeholder" {
   bucket = aws_s3_bucket.knowledge_base.id
   key    = "raw/private/resume.pdf"
-  lifecycle { ignore_changes = [source, content, etag, version_id] }
+  lifecycle { ignore_changes = [source, content, etag] }
 }
 
 resource "aws_s3_object" "leetcode_placeholder" {
   bucket = aws_s3_bucket.knowledge_base.id
   key    = "raw/private/leetcode.json"
-  lifecycle { ignore_changes = [source, content, etag, version_id] }
+  lifecycle { ignore_changes = [source, content, etag] }
 }
 
 # ------------------------------------------------------------------
