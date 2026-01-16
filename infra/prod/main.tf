@@ -119,6 +119,9 @@ module "quiz_backend" {
   # Pass permissions so the Lambda can READ from the bucket
   kb_bucket_arn     = aws_s3_bucket.knowledge_base.arn
   kb_bucket_id      = aws_s3_bucket.knowledge_base.id
+
+  github_repo       = "justinklein2001/terraform-justinklein.ca" # Your Monolith Repo
+  github_oidc_arn   = local.github_oidc_arn
 }
 
 # ------------------------------------------------------------------

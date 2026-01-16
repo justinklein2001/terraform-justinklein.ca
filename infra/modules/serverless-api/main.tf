@@ -173,3 +173,61 @@ resource "aws_lambda_permission" "gw_perm" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
+
+# ------------------------------------------------------------------------------
+# 4. CI/CD DEPLOYMENT ROLE (For GitHub Actions)
+# ------------------------------------------------------------------------------
+
+# A. The Trust Policy (The "Bouncer")
+# Allows YOUR specific GitHub repo to assume this role
+data "aws_iam_policy_document" "github_trust" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    effect  = "Allow"
+    
+    principals {
+      type        = "Federated"
+      identifiers = [var.github_oidc_arn]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${var.github_repo}:*"]
+    }
+    
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "deployer" {
+  name               = "${var.app_name}-deploy-role"
+  assume_role_policy = data.aws_iam_policy_document.github_trust.json
+}
+
+# B. The Permissions (What it can do)
+# Strictly limited to updating THIS specific Lambda function
+resource "aws_iam_role_policy" "deployer_policy" {
+  name = "lambda-update-policy"
+  role = aws_iam_role.deployer.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid      = "UpdateLambdaCode",
+        Effect   = "Allow",
+        Action   = [
+          "lambda:UpdateFunctionCode",
+          "lambda:GetFunction",
+          "lambda:GetFunctionConfiguration"
+        ],
+        Resource = aws_lambda_function.fn.arn
+      }
+    ]
+  })
+}

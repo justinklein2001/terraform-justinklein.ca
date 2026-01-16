@@ -22,3 +22,13 @@ variable "kb_bucket_id" {
   description = "ID of the Knowledge Base bucket (for Env Vars)"
   type        = string
 }
+
+variable "github_repo" {
+  description = "The GitHub repo allowed to deploy this function (e.g., 'justinklein2001/monorepo')"
+  type        = string
+}
+
+variable "github_oidc_arn" {
+  description = "The ARN of the GitHub OIDC Provider (passed from root)"
+  type        = string
+}
