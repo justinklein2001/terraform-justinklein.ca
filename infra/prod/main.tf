@@ -120,7 +120,7 @@ module "quiz_backend" {
   kb_bucket_arn     = aws_s3_bucket.knowledge_base.arn
   kb_bucket_id      = aws_s3_bucket.knowledge_base.id
 
-  github_repo       = "justinklein2001/terraform-justinklein.ca" # Your Monolith Repo
+  github_repo       = "justinklein2001/terraform-justinklein.ca"
   github_oidc_arn   = local.github_oidc_arn
 }
 
