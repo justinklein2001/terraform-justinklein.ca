@@ -1,0 +1,52 @@
+name: Deploy Quiz Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/prod/lambda/**' # Only trigger if Lambda code changes
+      - '.github/workflows/deploy-lambda.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-lambda:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: infra/prod/lambda/package-lock.json
+
+      # 1. The Real Build (Install Dependencies)
+      - name: Install Dependencies
+        working-directory: infra/prod/lambda
+        run: |
+          npm ci
+
+      # 2. Zip the Artifact (Code + node_modules)
+      - name: Zip Lambda
+        working-directory: infra/prod/lambda
+        run: zip -r function.zip .
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }} # Reuse existing Role
+          aws-region: us-east-1
+
+      # 3. Update the Function Code
+      - name: Deploy to AWS Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name quiz-app-fn \
+            --zip-file fileb://infra/prod/lambda/function.zip

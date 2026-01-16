@@ -56,12 +56,14 @@ resource "aws_iam_role" "tfc_admin_role" {
 # ------------------------------------------------------------------------------
 resource "aws_iam_policy" "tfc_least_privilege" {
   name        = "TFC-LeastPrivilege-Policy"
-  description = "Permissions for TFC to manage S3/CloudFront/Route53 for justinklein.ca"
+  description = "Permissions for TFC to manage S3, CloudFront, Cognito, Lambda, and API Gateway"
 
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
-      # S3 Management (Scoped to root domain naming convention)
+      # --------------------------------------------------------
+      # 1. STORAGE & CONTENT DELIVERY (Existing)
+      # --------------------------------------------------------
       {
         Sid      = "ManagePortfolioBuckets"
         Effect   = "Allow"
@@ -76,13 +78,9 @@ resource "aws_iam_policy" "tfc_least_privilege" {
       {
         Sid      = "S3ListAllBuckets"
         Effect   = "Allow"
-        Action   = [
-          "s3:ListAllMyBuckets",
-          "s3:GetBucketLocation"
-        ]
+        Action   = ["s3:ListAllMyBuckets", "s3:GetBucketLocation"]
         Resource = "*"
       },
-      # CloudFront Management
       {
         Sid      = "CloudFrontManagement"
         Effect   = "Allow"
@@ -110,16 +108,18 @@ resource "aws_iam_policy" "tfc_least_privilege" {
         ]
         Resource = "*"
       },
-      # Route53 Management (Specific Zone)
+
+      # --------------------------------------------------------
+      # 2. NETWORKING & DNS
+      # --------------------------------------------------------
       {
         Sid      = "Route53LimitedAccess"
         Effect   = "Allow"
         Action   = "route53:*"
         Resource = [
           "arn:aws:route53:::hostedzone/Z000438022EYGSL687R91"
-        ]
+          ]
       },
-      # Route53 Read-Only (Global)
       {
         Sid      = "Route53Reads"
         Effect   = "Allow"
@@ -143,37 +143,75 @@ resource "aws_iam_policy" "tfc_least_privilege" {
         ]
         Resource = "*"
       },
-      # ACM Read-Only (Safe)
       {
         Sid      = "ACMReadOnly"
         Effect   = "Allow"
+        Action   = ["acm:ListCertificates", "acm:DescribeCertificate", "acm:GetCertificate", "acm:ListTagsForCertificate"]
+        Resource = "*"
+      },
+
+      # --------------------------------------------------------
+      # 3. NEW: SERVERLESS COMPUTE & AUTH 
+      # --------------------------------------------------------
+      
+      # COGNITO: Needed to create the User Pool and Client
+      {
+        Sid      = "ManageCognito"
+        Effect   = "Allow"
+        Action   = ["cognito-idp:*"] 
+        Resource = "*"
+      },
+
+      # LAMBDA: Needed to create/update the Quiz function
+      {
+        Sid      = "ManageLambda"
+        Effect   = "Allow"
         Action   = [
-          "acm:ListCertificates",
-          "acm:DescribeCertificate",
-          "acm:GetCertificate",
-          "acm:ListTagsForCertificate"
+          "lambda:CreateFunction", "lambda:DeleteFunction",
+          "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration",
+          "lambda:GetFunction", "lambda:ListTags", "lambda:TagResource", 
+          "lambda:UntagResource", "lambda:AddPermission", "lambda:RemovePermission"
         ]
         Resource = "*"
       },
-      # IAM Role Management for GitHub Deployments
+
+      # API GATEWAY (HTTP API): Needed for the Backend API
       {
-        Sid    = "AllowTFCToCreateGitHubRoles",
+        Sid      = "ManageAPIGateway"
+        Effect   = "Allow"
+        Action   = ["apigateway:*"] 
+        # Note: API Gateway V2 ARNs are complex to scope tightly in bootstrap, 
+        # wildcard is standard for the provisioning role.
+        Resource = "*"
+      },
+
+      # BUDGETS: Needed for the "Panic Button"
+      {
+        Sid      = "ManageBudgets"
+        Effect   = "Allow"
+        Action   = ["budgets:ViewBudget", "budgets:ModifyBudget"]
+        Resource = "*"
+      },
+
+      # --------------------------------------------------------
+      # 4. IAM ROLE MANAGEMENT (Expanded)
+      # --------------------------------------------------------
+      {
+        Sid    = "AllowTFCToCreateRoles",
         Effect = "Allow",
         Action = [
-          "iam:CreateRole",
-          "iam:DeleteRole",
-          "iam:GetRole",
-          "iam:UpdateRole",
-          "iam:TagRole",
-          "iam:UntagRole",
-          "iam:PassRole",
-          "iam:ListRolePolicies",
-          "iam:ListAttachedRolePolicies",
-          "iam:GetRolePolicy",
-          "iam:PutRolePolicy",
-          "iam:DeleteRolePolicy"
+          "iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
+          "iam:UpdateRole", "iam:TagRole", "iam:UntagRole",
+          "iam:PassRole", "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies", "iam:GetRolePolicy",
+          "iam:PutRolePolicy", "iam:DeleteRolePolicy"
         ],
-        Resource = "arn:aws:iam::${var.aws_account_id}:role/*-github-deploy-role"
+        Resource = [
+          # Roles for GitHub Actions
+          "arn:aws:iam::${var.aws_account_id}:role/*-github-deploy-role",    
+          # Roles for Apps (e.g. quiz-app-role)
+          "arn:aws:iam::${var.aws_account_id}:role/*-role"
+        ]
       }
     ]
   })

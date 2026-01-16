@@ -228,13 +228,19 @@ resource "aws_iam_role_policy" "github_deploy_policy" {
         Effect = "Allow",
         Action = "cloudfront:CreateInvalidation",
         Resource = "*"
+      },
+      {
+        Sid      = "AllowLambdaDeploy"
+        Effect   = "Allow"
+        Action   = "lambda:UpdateFunctionCode"
+        Resource = "arn:aws:lambda:us-east-1:*:function:quiz-app-fn"
       }
     ]
   })
 }
 
 # ------------------------------------------------------------------
-# 2. The Vector KB Policy (Conditiona: Only created if kb_bucket_name exists)
+# 2. The Vector KB Policy (Condition: Only created if kb_bucket_name exists)
 # ------------------------------------------------------------------
 
 resource "aws_iam_role_policy" "vector_kb_policy" {
