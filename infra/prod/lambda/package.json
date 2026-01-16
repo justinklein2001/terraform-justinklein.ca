@@ -1,0 +1,10 @@
+{
+  "name": "quiz-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.0.0",
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@lancedb/lancedb": "^0.23.0"
+  }
+}
