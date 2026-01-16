@@ -88,7 +88,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
 resource "aws_lambda_function" "fn" {
   function_name    = "${var.app_name}-fn"
   role             = aws_iam_role.lambda_role.arn
-  runtime          = "nodejs24.x"
+  runtime          = "nodejs22.x"
   handler          = "index.handler"
   timeout          = 30
   memory_size      = 512
