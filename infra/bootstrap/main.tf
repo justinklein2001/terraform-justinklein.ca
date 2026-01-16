@@ -1,68 +1,15 @@
-provider "aws" {
-  region = var.region
-  # Uses local AWS CLI credentials
-}
-
-# ------------------------------------------------------------------------------
-# Terraform OIDC Provider (Connects AWS to Terraform Cloud)
-# ------------------------------------------------------------------------------
-resource "aws_iam_openid_connect_provider" "tfc_provider" {
-  url             = "https://app.terraform.io"
-  client_id_list  = ["aws.workload.identity"]
-  thumbprint_list = ["9e99a48a9960b14926bb7f3b02e22da2b0ab7280"]
-}
-
-# ------------------------------------------------------------------------------
-# GitHub OIDC Provider (Global)
-# ------------------------------------------------------------------------------
-resource "aws_iam_openid_connect_provider" "github_provider" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  # GitHub's thumbprint (This is the standard one)
-  thumbprint_list = ["1c58a3a8518e8759bf075b76b750d4f2df264fcd"]
-}
-
-# ------------------------------------------------------------------------------
-# IAM Role (The Identity TFC Assumes)
-# ------------------------------------------------------------------------------
-resource "aws_iam_role" "tfc_admin_role" {
-  name = "tfc-admin-role" 
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow",
-        Principal = {
-          Federated = "arn:aws:iam::${var.aws_account_id}:oidc-provider/app.terraform.io"
-        },
-        Action = "sts:AssumeRoleWithWebIdentity",
-        Condition = {
-          StringEquals = {
-            "app.terraform.io:aud" = "aws.workload.identity"
-          },
-          # Wildcard allowing any workspace in project
-          StringLike = {
-            "app.terraform.io:sub" = "organization:justinklein:project:*:workspace:*:run_phase:*"
-          }
-        }
-      }
-    ]
-  })
-}
-
 resource "aws_iam_policy" "tfc_least_privilege" {
   name        = "TFC-LeastPrivilege-Policy"
-  description = "Permissions for TFC to manage S3, CloudFront, Cognito, Lambda, and API Gateway"
+  description = "Robust permissions for TFC to manage the Portfolio Stack"
 
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       # --------------------------------------------------------
-      # 1. STORAGE & CONTENT DELIVERY
+      # 1. STORAGE & CONTENT DELIVERY (S3 + CloudFront)
       # --------------------------------------------------------
       {
-        Sid      = "ManagePortfolioBuckets"
+        Sid      = "S3FullAccessToPortfolio"
         Effect   = "Allow"
         Action   = "s3:*"
         Resource = [
@@ -73,105 +20,88 @@ resource "aws_iam_policy" "tfc_least_privilege" {
         ]
       },
       {
-        Sid      = "S3ListAllBuckets"
+        Sid      = "S3ListAll"
         Effect   = "Allow"
         Action   = ["s3:ListAllMyBuckets", "s3:GetBucketLocation"]
         Resource = "*"
       },
       {
-        Sid      = "CloudFrontManagement"
+        Sid      = "CloudFrontFullAccess"
         Effect   = "Allow"
         Action   = [
-          "cloudfront:CreateDistribution", "cloudfront:UpdateDistribution",
-          "cloudfront:GetDistribution", "cloudfront:DeleteDistribution",
-          "cloudfront:TagResource", "cloudfront:UntagResource",
-          "cloudfront:ListTagsForResource", "cloudfront:CreateInvalidation",
-          "cloudfront:CreateOriginAccessControl", "cloudfront:UpdateOriginAccessControl",
-          "cloudfront:GetOriginAccessControl", "cloudfront:DeleteOriginAccessControl",
-          "cloudfront:ListOriginAccessControls",
-          "cloudfront:CreateFunction", "cloudfront:DescribeFunction",
-          "cloudfront:GetFunction", "cloudfront:UpdateFunction",
-          "cloudfront:DeleteFunction", "cloudfront:PublishFunction", "cloudfront:TestFunction"
+          "cloudfront:*" 
+          # CloudFront is safe to wildcard here because it's hard to scope by resource ARN
         ]
         Resource = "*"
       },
 
       # --------------------------------------------------------
-      # 2. NETWORKING & DNS
+      # 2. NETWORKING (Route53 + ACM)
       # --------------------------------------------------------
       {
-        Sid      = "Route53LimitedAccess"
+        Sid      = "Route53ZoneAccess"
         Effect   = "Allow"
         Action   = "route53:*"
         Resource = ["arn:aws:route53:::hostedzone/Z000438022EYGSL687R91"]
       },
       {
-        Sid      = "Route53Reads"
+        Sid      = "Route53GlobalReads"
         Effect   = "Allow"
-        Action   = [
-          "route53:ListHostedZones", "route53:ListHostedZonesByName",
-          "route53:GetHostedZone", "route53:ListResourceRecordSets",
-          "route53:ListTagsForResource", "route53:ListTagsForResources",
-          "route53:ListHealthChecks", "route53:GetHealthCheck",
-          "route53:GetHealthCheckStatus", "route53:ListTrafficPolicies",
-          "route53:GetTrafficPolicy", "route53:GetTrafficPolicyInstance",
-          "route53:ListTrafficPolicyInstances", "route53:ListQueryLoggingConfigs",
-          "route53:GetQueryLoggingConfig", "route53:GetChange"
-        ]
+        Action   = ["route53:List*", "route53:Get*"]
         Resource = "*"
       },
       {
         Sid      = "ACMReadOnly"
         Effect   = "Allow"
-        Action   = ["acm:ListCertificates", "acm:DescribeCertificate", "acm:GetCertificate", "acm:ListTagsForCertificate"]
+        Action   = ["acm:List*", "acm:Describe*", "acm:Get*"]
         Resource = "*"
       },
 
       # --------------------------------------------------------
-      # 3. SERVERLESS COMPUTE & AUTH (Updated)
+      # 3. SERVERLESS COMPUTE
       # --------------------------------------------------------
       
-      # COGNITO
+      # LAMBDA: Allow ALL Reads/Lists, strict Writes
       {
-        Sid      = "ManageCognito"
+        Sid      = "LambdaReadList"
         Effect   = "Allow"
-        Action   = ["cognito-idp:*"] 
+        Action   = ["lambda:Get*", "lambda:List*"]
         Resource = "*"
       },
-
-      # LAMBDA: Added 'lambda:ListVersionsByFunction'
       {
-        Sid      = "ManageLambda"
+        Sid      = "LambdaWrite"
         Effect   = "Allow"
         Action   = [
           "lambda:CreateFunction", "lambda:DeleteFunction",
           "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration",
-          "lambda:GetFunction", "lambda:ListTags", "lambda:TagResource", 
-          "lambda:UntagResource", "lambda:AddPermission", "lambda:RemovePermission",
-          "lambda:ListVersionsByFunction", "lambda:ListAliases"
+          "lambda:TagResource", "lambda:UntagResource", 
+          "lambda:AddPermission", "lambda:RemovePermission",
+          "lambda:PutFunctionConcurrency"
         ]
         Resource = "*"
       },
 
-      # API GATEWAY
+      # COGNITO: Broad access needed for User Pool configuration
       {
-        Sid      = "ManageAPIGateway"
+        Sid      = "CognitoFullAccess"
         Effect   = "Allow"
-        Action   = ["apigateway:*"] 
+        Action   = ["cognito-idp:*"]
         Resource = "*"
       },
 
-      # BUDGETS: Added Tagging Permissions
+      # API GATEWAY: Broad access needed for V2 APIs
       {
-        Sid      = "ManageBudgets"
+        Sid      = "APIGatewayFullAccess"
         Effect   = "Allow"
-        Action   = [
-          "budgets:ViewBudget", 
-          "budgets:ModifyBudget",
-          "budgets:ListTagsForResource",
-          "budgets:TagResource",
-          "budgets:UntagResource"
-        ]
+        Action   = ["apigateway:*"]
+        Resource = "*"
+      },
+
+      # BUDGETS: Just give full access (Low security risk)
+      {
+        Sid      = "BudgetsFullAccess"
+        Effect   = "Allow"
+        Action   = ["budgets:*"]
         Resource = "*"
       },
 
@@ -195,12 +125,4 @@ resource "aws_iam_policy" "tfc_least_privilege" {
       }
     ]
   })
-}
-
-# ------------------------------------------------------------------------------
-# 4. Attach Policy to Role
-# ------------------------------------------------------------------------------
-resource "aws_iam_role_policy_attachment" "attach_least_privilege" {
-  role       = aws_iam_role.tfc_admin_role.name
-  policy_arn = aws_iam_policy.tfc_least_privilege.arn
 }
