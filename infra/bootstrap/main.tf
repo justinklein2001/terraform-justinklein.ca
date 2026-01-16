@@ -51,9 +51,6 @@ resource "aws_iam_role" "tfc_admin_role" {
   })
 }
 
-# ------------------------------------------------------------------------------
-# Custom Least Privilege Policy for TFC Role
-# ------------------------------------------------------------------------------
 resource "aws_iam_policy" "tfc_least_privilege" {
   name        = "TFC-LeastPrivilege-Policy"
   description = "Permissions for TFC to manage S3, CloudFront, Cognito, Lambda, and API Gateway"
@@ -62,7 +59,7 @@ resource "aws_iam_policy" "tfc_least_privilege" {
     Version = "2012-10-17",
     Statement = [
       # --------------------------------------------------------
-      # 1. STORAGE & CONTENT DELIVERY (Existing)
+      # 1. STORAGE & CONTENT DELIVERY
       # --------------------------------------------------------
       {
         Sid      = "ManagePortfolioBuckets"
@@ -85,26 +82,16 @@ resource "aws_iam_policy" "tfc_least_privilege" {
         Sid      = "CloudFrontManagement"
         Effect   = "Allow"
         Action   = [
-          "cloudfront:CreateDistribution",
-          "cloudfront:UpdateDistribution",
-          "cloudfront:GetDistribution",
-          "cloudfront:DeleteDistribution",
-          "cloudfront:TagResource",
-          "cloudfront:UntagResource",
-          "cloudfront:ListTagsForResource",
-          "cloudfront:CreateInvalidation",
-          "cloudfront:CreateOriginAccessControl",
-          "cloudfront:UpdateOriginAccessControl",
-          "cloudfront:GetOriginAccessControl",
-          "cloudfront:DeleteOriginAccessControl",
+          "cloudfront:CreateDistribution", "cloudfront:UpdateDistribution",
+          "cloudfront:GetDistribution", "cloudfront:DeleteDistribution",
+          "cloudfront:TagResource", "cloudfront:UntagResource",
+          "cloudfront:ListTagsForResource", "cloudfront:CreateInvalidation",
+          "cloudfront:CreateOriginAccessControl", "cloudfront:UpdateOriginAccessControl",
+          "cloudfront:GetOriginAccessControl", "cloudfront:DeleteOriginAccessControl",
           "cloudfront:ListOriginAccessControls",
-          "cloudfront:CreateFunction",
-          "cloudfront:DescribeFunction",
-          "cloudfront:GetFunction",
-          "cloudfront:UpdateFunction",
-          "cloudfront:DeleteFunction",
-          "cloudfront:PublishFunction",
-          "cloudfront:TestFunction"
+          "cloudfront:CreateFunction", "cloudfront:DescribeFunction",
+          "cloudfront:GetFunction", "cloudfront:UpdateFunction",
+          "cloudfront:DeleteFunction", "cloudfront:PublishFunction", "cloudfront:TestFunction"
         ]
         Resource = "*"
       },
@@ -116,30 +103,20 @@ resource "aws_iam_policy" "tfc_least_privilege" {
         Sid      = "Route53LimitedAccess"
         Effect   = "Allow"
         Action   = "route53:*"
-        Resource = [
-          "arn:aws:route53:::hostedzone/Z000438022EYGSL687R91"
-          ]
+        Resource = ["arn:aws:route53:::hostedzone/Z000438022EYGSL687R91"]
       },
       {
         Sid      = "Route53Reads"
         Effect   = "Allow"
         Action   = [
-          "route53:ListHostedZones",
-          "route53:ListHostedZonesByName",
-          "route53:GetHostedZone",
-          "route53:ListResourceRecordSets",
-          "route53:ListTagsForResource",
-          "route53:ListTagsForResources",
-          "route53:ListHealthChecks",
-          "route53:GetHealthCheck",
-          "route53:GetHealthCheckStatus",
-          "route53:ListTrafficPolicies",
-          "route53:GetTrafficPolicy",
-          "route53:GetTrafficPolicyInstance",
-          "route53:ListTrafficPolicyInstances",
-          "route53:ListQueryLoggingConfigs",
-          "route53:GetQueryLoggingConfig",
-          "route53:GetChange"
+          "route53:ListHostedZones", "route53:ListHostedZonesByName",
+          "route53:GetHostedZone", "route53:ListResourceRecordSets",
+          "route53:ListTagsForResource", "route53:ListTagsForResources",
+          "route53:ListHealthChecks", "route53:GetHealthCheck",
+          "route53:GetHealthCheckStatus", "route53:ListTrafficPolicies",
+          "route53:GetTrafficPolicy", "route53:GetTrafficPolicyInstance",
+          "route53:ListTrafficPolicyInstances", "route53:ListQueryLoggingConfigs",
+          "route53:GetQueryLoggingConfig", "route53:GetChange"
         ]
         Resource = "*"
       },
@@ -151,10 +128,10 @@ resource "aws_iam_policy" "tfc_least_privilege" {
       },
 
       # --------------------------------------------------------
-      # 3. NEW: SERVERLESS COMPUTE & AUTH 
+      # 3. SERVERLESS COMPUTE & AUTH (Updated)
       # --------------------------------------------------------
       
-      # COGNITO: Needed to create the User Pool and Client
+      # COGNITO
       {
         Sid      = "ManageCognito"
         Effect   = "Allow"
@@ -162,7 +139,7 @@ resource "aws_iam_policy" "tfc_least_privilege" {
         Resource = "*"
       },
 
-      # LAMBDA: Needed to create/update the Quiz function
+      # LAMBDA: Added 'lambda:ListVersionsByFunction'
       {
         Sid      = "ManageLambda"
         Effect   = "Allow"
@@ -170,31 +147,36 @@ resource "aws_iam_policy" "tfc_least_privilege" {
           "lambda:CreateFunction", "lambda:DeleteFunction",
           "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration",
           "lambda:GetFunction", "lambda:ListTags", "lambda:TagResource", 
-          "lambda:UntagResource", "lambda:AddPermission", "lambda:RemovePermission"
+          "lambda:UntagResource", "lambda:AddPermission", "lambda:RemovePermission",
+          "lambda:ListVersionsByFunction", "lambda:ListAliases"
         ]
         Resource = "*"
       },
 
-      # API GATEWAY (HTTP API): Needed for the Backend API
+      # API GATEWAY
       {
         Sid      = "ManageAPIGateway"
         Effect   = "Allow"
         Action   = ["apigateway:*"] 
-        # Note: API Gateway V2 ARNs are complex to scope tightly in bootstrap, 
-        # wildcard is standard for the provisioning role.
         Resource = "*"
       },
 
-      # BUDGETS: Needed for the "Panic Button"
+      # BUDGETS: Added Tagging Permissions
       {
         Sid      = "ManageBudgets"
         Effect   = "Allow"
-        Action   = ["budgets:ViewBudget", "budgets:ModifyBudget"]
+        Action   = [
+          "budgets:ViewBudget", 
+          "budgets:ModifyBudget",
+          "budgets:ListTagsForResource",
+          "budgets:TagResource",
+          "budgets:UntagResource"
+        ]
         Resource = "*"
       },
 
       # --------------------------------------------------------
-      # 4. IAM ROLE MANAGEMENT (Expanded)
+      # 4. IAM ROLE MANAGEMENT
       # --------------------------------------------------------
       {
         Sid    = "AllowTFCToCreateRoles",
@@ -207,9 +189,7 @@ resource "aws_iam_policy" "tfc_least_privilege" {
           "iam:PutRolePolicy", "iam:DeleteRolePolicy"
         ],
         Resource = [
-          # Roles for GitHub Actions
-          "arn:aws:iam::${var.aws_account_id}:role/*-github-deploy-role",    
-          # Roles for Apps (e.g. quiz-app-role)
+          "arn:aws:iam::${var.aws_account_id}:role/*-github-deploy-role",
           "arn:aws:iam::${var.aws_account_id}:role/*-role"
         ]
       }
