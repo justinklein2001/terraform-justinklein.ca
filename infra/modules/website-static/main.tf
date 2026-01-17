@@ -276,3 +276,24 @@ resource "aws_iam_role_policy" "vector_kb_policy" {
     ]
   })
 }
+
+# Allow the Build Process to talk to Bedrock (for Vectorization)
+resource "aws_iam_role_policy" "bedrock_access" {
+  
+  count = var.kb_bucket_name != "" ? 1 : 0
+  name = "bedrock-embedding-policy"
+  role = aws_iam_role.github_deploy_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid      = "AllowTitanEmbeddings",
+        Effect   = "Allow",
+        Action   = "bedrock:InvokeModel",
+        # Specifically restrict it to the Titan Embeddings v2 model
+        Resource = "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
+      }
+    ]
+  })
+}
