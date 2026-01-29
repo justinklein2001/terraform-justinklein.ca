@@ -203,6 +203,13 @@ resource "aws_apigatewayv2_route" "route" {
   authorization_type = "JWT"
 }
 
+resource "aws_apigatewayv2_route" "history_route" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /history"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda_int.id}"
+  # No Authorizer = Public Access
+}
+
 resource "aws_lambda_permission" "gw_perm" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
@@ -216,7 +223,7 @@ resource "aws_lambda_permission" "gw_perm" {
 # ------------------------------------------------------------------------------
 
 # A. The Trust Policy (The "Bouncer")
-# Allows the specific GitHub repo to assume this role
+# Allows YOUR specific GitHub repo to assume this role
 data "aws_iam_policy_document" "github_trust" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
