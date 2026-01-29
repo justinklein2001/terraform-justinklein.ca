@@ -66,8 +66,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Resource = "arn:aws:logs:*:*:*"
       },
       {
-        Sid      = "AllowKBRead"
-        Action   = ["s3:GetObject", "s3:ListBucket"],
+        Sid      = "AllowKBReadWrite"
+        Action   = ["s3:GetObject", "s3:ListBucket", "s3:PutObject"],
         Effect   = "Allow",
         Resource = [var.kb_bucket_arn, "${var.kb_bucket_arn}/*"]
       },
@@ -79,6 +79,18 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0",
           "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
         ]
+      },
+      {
+        Sid      = "AllowDynamoDB"
+        Action   = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"
+        ],
+        Effect   = "Allow",
+        Resource = aws_dynamodb_table.history.arn
       }
     ]
   })
@@ -100,6 +112,7 @@ resource "aws_lambda_function" "fn" {
   environment {
     variables = {
       KB_BUCKET_NAME = var.kb_bucket_id
+      HISTORY_TABLE  = aws_dynamodb_table.history.name
     }
   }
 
@@ -109,6 +122,31 @@ resource "aws_lambda_function" "fn" {
       filename,
       source_code_hash
     ]
+  }
+}
+
+# ------------------------------------------------------------------------------
+# 5. DATABASE (DynamoDB)
+# ------------------------------------------------------------------------------
+resource "aws_dynamodb_table" "history" {
+  name           = "${var.app_name}-history"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "pk"
+  range_key      = "sk"
+
+  attribute {
+    name = "pk"
+    type = "S"
+  }
+
+  attribute {
+    name = "sk"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
   }
 }
 
@@ -178,7 +216,7 @@ resource "aws_lambda_permission" "gw_perm" {
 # ------------------------------------------------------------------------------
 
 # A. The Trust Policy (The "Bouncer")
-# Allows YOUR specific GitHub repo to assume this role
+# Allows the specific GitHub repo to assume this role
 data "aws_iam_policy_document" "github_trust" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]

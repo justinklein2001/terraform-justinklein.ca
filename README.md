@@ -1,6 +1,6 @@
 # Terraform/AWS Infrastructure Overview
 ## Author: Justin Klein
-## Last Updated: January 10th, 2026
+## Last Updated: January 29th, 2026
 
 ### What does this repo do?
 This repository contains a **production-ready** Infrastructure as Code (IaC) solution for deploying a portfolio of web applications. It uses a **Monolithic** Terraform architecture to manage multiple sites (including `justinklein.ca` and its subdomains) from a single control plane.

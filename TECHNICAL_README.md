@@ -1,6 +1,6 @@
 # Terraform Infrastructure Technical Overview
 ## Author: Justin Klein
-## Last Updated: January 10th, 2026
+## Last Updated: January 29th, 2026
 
 This repository utilizes a **Split-State Architecture** to manage AWS infrastructure securely.
 - **`infra/bootstrap`**: Manages Identity & Access (IAM). Executed locally by an Admin.

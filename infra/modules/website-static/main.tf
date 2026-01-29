@@ -297,3 +297,27 @@ resource "aws_iam_role_policy" "bedrock_access" {
     ]
   })
 }
+
+# Allow the Build Process to deploy updates to Lambda
+resource "aws_iam_role_policy" "lambda_access" {
+  name = "allow-github-to-deploy-quiz-lambda"
+  role = aws_iam_role.github_deploy_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "AllowLambdaCodeUpdate",
+        Effect = "Allow",
+        Action = [
+          "lambda:UpdateFunctionCode",
+          "lambda:GetFunctionConfiguration",
+          "lambda:UpdateFunctionConfiguration",
+          "lambda:PublishVersion"
+        ],
+        # Restrict purely to the quiz lambda function
+        Resource = module.quiz_backend.lambda_function_arn
+      }
+    ]
+  })
+}
