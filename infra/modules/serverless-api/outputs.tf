@@ -13,3 +13,7 @@ output "user_pool_client_id" {
 output "deploy_role_arn" {
   value = aws_iam_role.deployer.arn
 }
+
+output "lambda_function_arn" {
+  value = aws_lambda_function.fn.arn
+}

@@ -103,6 +103,8 @@ module "site_get_quizzed" {
   acm_certificate_arn = data.aws_acm_certificate.wildcard.arn
   github_repo         = "justinklein2001/get-quizzed" 
   github_oidc_arn     = local.github_oidc_arn
+
+  lambda_function_arn = module.quiz_backend.lambda_function_arn
 }
 
 # ------------------------------------------------------------------

@@ -34,3 +34,9 @@ variable "kb_bucket_name" {
   type        = string
   default     = "" 
 }
+
+variable "lambda_function_arn" {
+  description = "Optional: ARN of the Lambda function to allow deployment updates"
+  type        = string
+  default     = ""
+}
