@@ -158,6 +158,14 @@ resource "aws_iam_policy" "tfc_least_privilege" {
         Resource = "*"
       },
 
+      # DYNAMODB: Allow table creation for History/State
+      {
+        Sid      = "DynamoDBFullAccess"
+        Effect   = "Allow"
+        Action   = ["dynamodb:*"]
+        Resource = "*"
+      },
+
       # --------------------------------------------------------
       # 4. IAM ROLE MANAGEMENT
       # --------------------------------------------------------
