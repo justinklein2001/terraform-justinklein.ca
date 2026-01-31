@@ -82,7 +82,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0",
           "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
           "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0",
-          "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
+          "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0",
+          "arn:aws:bedrock:us-east-1:*:inference-profile/*"
         ]
       },
       {
