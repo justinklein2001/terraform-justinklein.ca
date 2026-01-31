@@ -76,14 +76,14 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Action   = "bedrock:InvokeModel",
         Effect   = "Allow",
         Resource = [
-          "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
-          "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
-          "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-opus-20240229-v1:0",
-          "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0",
-          "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
-          "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0",
-          "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0",
-          "arn:aws:bedrock:us-east-1:*:inference-profile/*"
+          "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+          "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+          "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-opus-20240229-v1:0",
+          "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0",
+          "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
+          "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0",
+          "arn:aws:bedrock:*::foundation-model/amazon.titan-embed-text-v2:0",
+          "arn:aws:bedrock:*:*:inference-profile/*"
         ]
       },
       {
