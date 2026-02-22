@@ -218,6 +218,14 @@ resource "aws_apigatewayv2_route" "submit_route" {
   authorization_type = "JWT"
 }
 
+resource "aws_apigatewayv2_route" "validate_star" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /validate-star"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda_int.id}"
+  authorizer_id      = aws_apigatewayv2_authorizer.auth.id
+  authorization_type = "JWT"
+}
+
 resource "aws_apigatewayv2_route" "history_route" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "GET /history"
